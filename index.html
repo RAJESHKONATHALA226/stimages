@@ -2,26 +2,32 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Upload</title>
+<title>Image Upload Gallery</title>
 
 <style>
 
-body{
-font-family: Arial;
-background:#f5f5f5;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial, sans-serif;
 }
+
+body{
+background:#f4f6f9;
+padding:40px;
+}
+
+/* Upload box */
 
 .container{
 background:white;
-padding:30px;
+padding:25px;
 border-radius:10px;
 box-shadow:0 5px 20px rgba(0,0,0,0.1);
+max-width:420px;
+margin:auto;
 text-align:center;
-width:350px;
 }
 
 h2{
@@ -29,7 +35,7 @@ margin-bottom:20px;
 }
 
 input{
-margin:15px 0;
+margin:10px 0;
 }
 
 button{
@@ -37,8 +43,8 @@ background:#007bff;
 color:white;
 border:none;
 padding:10px 20px;
-cursor:pointer;
 border-radius:5px;
+cursor:pointer;
 }
 
 button:hover{
@@ -46,8 +52,46 @@ background:#0056b3;
 }
 
 #preview{
-margin-top:20px;
+margin-top:15px;
 max-width:100%;
+border-radius:6px;
+}
+
+/* Gallery */
+
+.gallery{
+margin-top:50px;
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+gap:20px;
+}
+
+.card{
+background:white;
+padding:10px;
+border-radius:8px;
+box-shadow:0 3px 12px rgba(0,0,0,0.1);
+text-align:center;
+}
+
+.card img{
+width:100%;
+border-radius:6px;
+}
+
+.delete-btn{
+margin-top:8px;
+background:red;
+padding:6px 12px;
+}
+
+.delete-btn:hover{
+background:#b30000;
+}
+
+.message{
+margin-top:10px;
+font-weight:bold;
 }
 
 </style>
@@ -59,37 +103,52 @@ max-width:100%;
 
 <h2>Upload Image</h2>
 
-<input type="file" id="imageInput">
+<input type="file" id="imageInput" accept="image/*">
 
 <br>
 
 <button onclick="uploadImage()">Upload</button>
 
-<br>
+<img id="preview">
 
-<img id="preview"/>
-
-<p id="message"></p>
+<p class="message" id="message"></p>
 
 </div>
 
+<div class="gallery" id="gallery"></div>
+
 <script>
+
+const API="https://happy.strlearners.site/api";
+
+/* IMAGE PREVIEW */
+
+document.getElementById("imageInput").addEventListener("change",function(){
+
+const file=this.files[0];
+
+if(file){
+document.getElementById("preview").src=URL.createObjectURL(file);
+}
+
+});
+
+/* UPLOAD IMAGE */
 
 function uploadImage(){
 
-const fileInput=document.getElementById("imageInput");
-const file=fileInput.files[0];
+const input=document.getElementById("imageInput");
+const file=input.files[0];
 
 if(!file){
-alert("Please select an image");
+alert("Select an image first");
 return;
 }
 
 const formData=new FormData();
-
 formData.append("image",file);
 
-fetch("https://happy.strlearners.site/api/upload",{
+fetch(API+"/upload",{
 
 method:"POST",
 body:formData
@@ -98,16 +157,79 @@ body:formData
 .then(res=>res.json())
 .then(data=>{
 
+if(data.success){
+
 document.getElementById("message").innerText="Upload successful";
+
+loadImages();
+
+}else{
+
+document.getElementById("message").innerText="Upload failed";
+
+}
 
 })
 .catch(err=>{
-console.error(err);
+
+console.log(err);
+document.getElementById("message").innerText="Server error";
+
 });
 
-document.getElementById("preview").src=URL.createObjectURL(file);
+}
+
+/* LOAD IMAGES */
+
+function loadImages(){
+
+fetch(API+"/images")
+.then(res=>res.json())
+.then(data=>{
+
+const gallery=document.getElementById("gallery");
+
+gallery.innerHTML="";
+
+data.data.forEach(img=>{
+
+gallery.innerHTML+=`
+
+<div class="card">
+
+<img src="${img.path}">
+
+<button class="delete-btn" onclick="deleteImage('${img._id}')">Delete</button>
+
+</div>
+
+`;
+
+});
+
+});
 
 }
+
+/* DELETE IMAGE */
+
+function deleteImage(id){
+
+if(!confirm("Delete this image?")) return;
+
+fetch(API+"/delete/"+id,{
+method:"DELETE"
+})
+.then(res=>res.json())
+.then(data=>{
+loadImages();
+});
+
+}
+
+/* INITIAL LOAD */
+
+loadImages();
 
 </script>
 
