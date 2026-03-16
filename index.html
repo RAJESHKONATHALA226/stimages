@@ -18,7 +18,7 @@ background:#f4f6f9;
 padding:40px;
 }
 
-/* Upload box */
+/* Upload Box */
 
 .container{
 background:white;
@@ -45,6 +45,7 @@ border:none;
 padding:10px 20px;
 border-radius:5px;
 cursor:pointer;
+transition:0.3s;
 }
 
 button:hover{
@@ -55,6 +56,7 @@ background:#0056b3;
 margin-top:15px;
 max-width:100%;
 border-radius:6px;
+display:none;
 }
 
 /* Gallery */
@@ -62,7 +64,7 @@ border-radius:6px;
 .gallery{
 margin-top:50px;
 display:grid;
-grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
 gap:20px;
 }
 
@@ -94,6 +96,12 @@ margin-top:10px;
 font-weight:bold;
 }
 
+.loader{
+margin-top:10px;
+font-size:14px;
+color:#555;
+}
+
 </style>
 </head>
 
@@ -112,6 +120,7 @@ font-weight:bold;
 <img id="preview">
 
 <p class="message" id="message"></p>
+<p class="loader" id="loader"></p>
 
 </div>
 
@@ -119,115 +128,148 @@ font-weight:bold;
 
 <script>
 
-const API="https://happy.strlearners.site/api";
+const API = "https://happy.strlearners.site/api";
 
-/* IMAGE PREVIEW */
+/* ================= PREVIEW IMAGE ================= */
 
 document.getElementById("imageInput").addEventListener("change",function(){
 
-const file=this.files[0];
+const file = this.files[0];
 
 if(file){
-document.getElementById("preview").src=URL.createObjectURL(file);
+
+const preview = document.getElementById("preview");
+
+preview.src = URL.createObjectURL(file);
+preview.style.display = "block";
+
 }
 
 });
 
-/* UPLOAD IMAGE */
+/* ================= UPLOAD IMAGE ================= */
 
-function uploadImage(){
+async function uploadImage(){
 
-const input=document.getElementById("imageInput");
-const file=input.files[0];
+const input = document.getElementById("imageInput");
+const file = input.files[0];
+
+const message = document.getElementById("message");
+const loader = document.getElementById("loader");
 
 if(!file){
 alert("Select an image first");
 return;
 }
 
-const formData=new FormData();
+try{
+
+loader.innerText="Uploading...";
+message.innerText="";
+
+const formData = new FormData();
 formData.append("image",file);
 
-fetch(API+"/upload",{
-
+const res = await fetch(API+"/upload",{
 method:"POST",
 body:formData
+});
 
-})
-.then(res=>res.json())
-.then(data=>{
+if(!res.ok){
+throw new Error("Upload failed");
+}
+
+const data = await res.json();
 
 if(data.success){
 
-document.getElementById("message").innerText="Upload successful";
+message.style.color="green";
+message.innerText="Upload successful";
+
+input.value="";
+document.getElementById("preview").style.display="none";
 
 loadImages();
 
 }else{
 
-document.getElementById("message").innerText="Upload failed";
+message.style.color="red";
+message.innerText="Upload failed";
 
 }
 
-})
-.catch(err=>{
+}catch(err){
 
-console.log(err);
-document.getElementById("message").innerText="Server error";
+console.error(err);
 
-});
+message.style.color="red";
+message.innerText="Server error";
 
 }
 
-/* LOAD IMAGES */
+loader.innerText="";
 
-function loadImages(){
+}
 
-fetch(API+"/images")
-.then(res=>res.json())
-.then(data=>{
+/* ================= LOAD IMAGES ================= */
 
-const gallery=document.getElementById("gallery");
+async function loadImages(){
+
+try{
+
+const res = await fetch(API+"/images");
+
+const data = await res.json();
+
+const gallery = document.getElementById("gallery");
 
 gallery.innerHTML="";
 
 data.data.forEach(img=>{
 
-gallery.innerHTML+=`
+const card = document.createElement("div");
+card.className="card";
 
-<div class="card">
-
+card.innerHTML = `
 <img src="${img.path}">
-
 <button class="delete-btn" onclick="deleteImage('${img._id}')">Delete</button>
-
-</div>
-
 `;
 
-});
+gallery.appendChild(card);
 
 });
+
+}catch(err){
+
+console.log("Error loading images");
 
 }
 
-/* DELETE IMAGE */
+}
 
-function deleteImage(id){
+/* ================= DELETE IMAGE ================= */
+
+async function deleteImage(id){
 
 if(!confirm("Delete this image?")) return;
 
-fetch(API+"/delete/"+id,{
+try{
+
+await fetch(API+"/delete/"+id,{
 method:"DELETE"
-})
-.then(res=>res.json())
-.then(data=>{
-loadImages();
 });
+
+loadImages();
+
+}catch(err){
+
+alert("Delete failed");
 
 }
 
-/* INITIAL LOAD */
+}
+
+/* ================= INITIAL LOAD ================= */
 
 loadImages();
 
